@@ -1,42 +1,72 @@
 const express = require('express');
 const router = express.Router();
+const fs = require("fs");
+const path = require("path");
 
-const notes = [
-    { id: 125, text: 'Note 1' },
-    { id: 123, text: 'Note 2' },
-    { id: 122, text: 'Note 3' },
-    { id: 121, text: 'Note 4' },
-];
+function getNotes() {
+    const notesString = fs.readFileSync(path.join(process.cwd(), "src/notes.json"), { encoding: "utf-8" })
+    return JSON.parse(notesString);
+}
+
+function writeNotes(notes) {
+    fs.writeFileSync(path.join(process.cwd(), "src/notes.json"), JSON.stringify(notes));
+}
 
 // READ ALL NOTES
 router.get('/', (req, res) => {
-    res.json(notes);
+    try {
+        const notes = getNotes();
+        res.json(notes);
+    } catch (ex) {
+        console.log(ex);
+        res.json([])
+    }
 })
 
 // CREATE A NEW NOTE
 router.post('/', (req, res) => {
-    const note = req.body;
-    notes.push(note);
-    res.json({ success: true });
+    try {
+        const note = req.body;
+        console.log(note);
+        const notes = getNotes();
+        notes.push(note);
+        writeNotes(notes);
+        res.json({ success: true });
+    } catch (ex) {
+        console.log(ex);
+        res.json({ success: false });
+    }
 })
 
 // UPDATE AN EXISTING NOTE
 router.put('/:id', (req, res) => {
-    const noteId = req.params.id;
-    console.log(noteId);
-    const oldNote = notes.find((n) => n.id == noteId);
-    console.log(oldNote);
-    const note = req.body;
-    oldNote.text = note.text;
-    res.json({ success: true });
+    try {
+        const noteId = req.params.id;
+        const notes = getNotes();
+        const oldNote = notes.find((n) => n.id == noteId);
+        const note = req.body;
+        oldNote.text = note.text;
+        writeNotes(notes);
+        res.json({ success: true });
+    } catch (ex) {
+        console.log(ex);
+        res.json({ success: false });
+    }
 })
 
 // DELETE AN EXISTING NOTE
 router.delete('/:id', (req, res) => {
-    const noteId = req.params.id;
-    const oldNoteId = notes.findIndex((n) => n.id == noteId);
-    notes.splice(oldNoteId, 1);
-    res.json({ success: true });
+    try {
+        const noteId = req.params.id;
+        const notes = getNotes();
+        const oldNoteId = notes.findIndex((n) => n.id == noteId);
+        notes.splice(oldNoteId, 1);
+        writeNotes(notes);
+        res.json({ success: true });
+    } catch (ex) {
+        console.log(ex);
+        res.json({ success: false });
+    }
 })
 
 module.exports = router;

@@ -55,11 +55,25 @@
                 <textarea id="note-editor" placeholder="Type your note here..." onfocus="removePlaceholder()"
                     onblur="isValid()" oninput="onEditorChange()"></textarea>
                 <span>Note cannot be empty.</span>
+                <div id="noteError" class="note-error">
+                </div>
                 <div class="modal-footer">
-                    <button class="button-secondary" onclick="hideDialog()">Cancel</button>
-                    <button id="saveButton" onclick="saveNote()">Save</button>
+                    <div>
+                        <button id="deleteButton" class="button-danger" onclick="deleteNote()"><i class="bi bi-trash3-fill"></i></button>
+                    </div>
+                    <div>
+                        <button class="button-secondary" onclick="hideDialog()">Cancel</button>
+                        <button id="saveButton" onclick="saveNote()">Save</button>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="loader" class="modal hide">
+        <div class="modal-backdrop"></div>
+        <div class="modal-wrapper loader-wrapper">
+            <div class="spinner"></div> Please wait...
         </div>
     </div>
 

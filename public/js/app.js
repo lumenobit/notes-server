@@ -2,13 +2,19 @@ let editNoteId = null;
 
 function showDialog(value = '') {
     resetEditorState(value);
+    toggleNoteError(false);
     let saveButtonDOM = document.getElementById('saveButton');
     let noteEditorHeadingDOM = document.getElementById('noteEditorHeading');
-    if (value) {
+    if (editNoteId) {
         noteEditorHeadingDOM.innerHTML = 'Edit Note';
-        saveButtonDOM.disabled = false;
+        toggleDeleteButton(true);
     } else {
         noteEditorHeadingDOM.innerHTML = 'Create a Note';
+        toggleDeleteButton(false);
+    }
+    if (value) {
+        saveButtonDOM.disabled = false;
+    } else {
         saveButtonDOM.disabled = true;
     }
     let dialogBoxDOM = document.getElementById('dialogBox');
@@ -32,13 +38,75 @@ function hideDialog() {
     }, 100);
 }
 
-function saveNote() {
+function toggleNoteError(show, message) {
+    const noteErrorDOM = document.getElementById('noteError');
+    if (show) {
+        noteErrorDOM.classList.remove("hide");
+        noteErrorDOM.innerHTML = message;
+    } else {
+        noteErrorDOM.classList.add("hide");
+    }
+}
+
+function toggleLoader(show) {
+    const loaderDOM = document.getElementById('loader');
+    if (show) {
+        loaderDOM.classList.remove("hide");
+    } else {
+        loaderDOM.classList.add("hide");
+    }
+}
+
+function toggleDeleteButton(show) {
+    const deleteBtnDOM = document.getElementById('deleteButton');
+    if (show) {
+        deleteBtnDOM.classList.remove("hide");
+    } else {
+        deleteBtnDOM.classList.add("hide");
+    }
+}
+
+async function saveNote() {
+    toggleLoader(true);
     let noteEditorDOM = document.getElementById('note-editor');
     let noteValue = noteEditorDOM.value;
-    saveNoteLocalStorage(noteValue);
+    // saveNoteLocalStorage(noteValue);
+    let success = false;
+    if (editNoteId) {
+        success = await updateNoteToServer(editNoteId, noteValue);
+    } else {
+        success = await saveNoteToServer(noteValue);
+    }
     // saveNoteToDB(noteValue);
-    refreshNoteList();
-    hideDialog();
+    if (success) {
+        await refreshNoteList();
+        toggleNoteError(false);
+        hideDialog();
+    } else {
+        toggleNoteError(true, "Some error occurred while saving note. Please try again later.");
+    }
+    toggleLoader(false);
+}
+
+async function deleteNote() {
+    if (editNoteId) {
+        toggleLoader(true);
+        const success = await deleteNoteFromServer(editNoteId);
+        if (success) {
+            await refreshNoteList();
+            toggleNoteError(false);
+            hideDialog();
+        } else {
+            toggleNoteError(true, "Some error occurred while deleting note. Please try again later.");
+        }
+        toggleLoader(false);
+    }
+}
+
+async function deleteNoteFromServer(noteId) {
+    const response = await fetch("/api/note/" + noteId, { method: "DELETE" })
+    const successResp = await response.json();
+    return successResp.success;
 }
 
 function onEditorChange() {
@@ -74,6 +142,33 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min) + min); // The maximum is exclusive and the minimum is inclusive
 }
 
+async function saveNoteToServer(noteValue) {
+    const newNote = {
+        id: getRandomInt(100, 999),
+        text: noteValue
+    }
+    const response = await fetch("/api/note", {
+        method: "POST",
+        body: JSON.stringify(newNote),
+        headers: { "Content-Type": "application/json" }
+    });
+    const successResp = await response.json();
+    return successResp.success;
+}
+
+async function updateNoteToServer(noteId, noteValue) {
+    const noteToEdit = {
+        text: noteValue
+    }
+    const response = await fetch("/api/note/" + noteId, {
+        method: "PUT",
+        body: JSON.stringify(noteToEdit),
+        headers: { "Content-Type": "application/json" }
+    });
+    const successResp = await response.json();
+    return successResp.success;
+}
+
 function saveNoteLocalStorage(noteValue) {
     let notes = getNotesLocalStorage();
     if (editNoteId) {
@@ -102,8 +197,23 @@ function getNotesLocalStorage() {
     return notes;
 }
 
-function refreshNoteList() {
-    const notes = getNotesLocalStorage();
+async function getNotesFromServer() {
+    // Asynchronous Operation
+    try {
+        const response = await fetch("/api/note");
+        // resolve
+        const notes = await response.json();
+        return notes;
+    } catch (ex) {
+        // reject
+        console.log(ex);
+        return [];
+    }
+}
+
+async function refreshNoteList() {
+    // const notes = getNotesLocalStorage();
+    const notes = await getNotesFromServer();
     const noteListDOM = document.body.children[2];
     noteListDOM.innerHTML = '';
     notes.forEach(note => {
@@ -140,4 +250,9 @@ function addNoteToNoteList(note) {
     noteListDOM.appendChild(noteDOM);
 }
 
-refreshNoteList();
+// IIFE = Immediately Invoked Function Expression
+(async () => {
+    toggleLoader(true);
+    await refreshNoteList();
+    toggleLoader(false);
+})();
